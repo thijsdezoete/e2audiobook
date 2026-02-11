@@ -22,7 +22,9 @@ class JobQueue:
         series_index: float | None = None,
     ) -> Job:
         conn = self.db.conn
-        row = conn.execute("SELECT COALESCE(MAX(queue_position), 0) FROM jobs WHERE status = 'pending'").fetchone()
+        row = conn.execute(
+            "SELECT COALESCE(MAX(COALESCE(queue_position, id)), 0) FROM jobs WHERE status = 'pending'"
+        ).fetchone()
         max_pos = row[0]
         conn.execute(
             """INSERT INTO jobs (calibre_book_id, title, author, voice, epub_path, series, series_index, queue_position)
