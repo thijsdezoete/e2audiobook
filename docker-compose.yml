@@ -1,0 +1,28 @@
+services:
+  kokoro-tts:
+    image: ghcr.io/remsky/kokoro-fastapi-gpu:v0.2.1
+    container_name: kokoro-tts
+    profiles: [gpu]
+    ports:
+      - "8880:8880"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    volumes:
+      - kokoro-models:/app/models
+    restart: unless-stopped
+
+  poc:
+    build: .
+    volumes:
+      - ./input:/books:ro
+      - ./output:/output
+    environment:
+      - TTS_URL=${TTS_URL:-http://192.168.2.38:11880}
+
+volumes:
+  kokoro-models:
