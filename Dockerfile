@@ -1,4 +1,7 @@
 FROM python:3.13-slim AS base
+LABEL org.opencontainers.image.source="https://github.com/thijsdezoete/e2audiobook"
+LABEL org.opencontainers.image.description="Convert ebooks to audiobooks using local AI text-to-speech"
+LABEL org.opencontainers.image.licenses="MIT"
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 COPY --from=mwader/static-ffmpeg:7.1 /ffmpeg /usr/local/bin/ffmpeg
 COPY --from=mwader/static-ffmpeg:7.1 /ffprobe /usr/local/bin/ffprobe

@@ -17,7 +17,8 @@ services:
     restart: unless-stopped
 
   narrator:
-    build: .
+    image: ghcr.io/thijsdezoete/e2audiobook:latest
+    # build: .  # uncomment to build locally instead
     ports:
       - "${NARRATOR_PORT:-8585}:8585"
     volumes:
