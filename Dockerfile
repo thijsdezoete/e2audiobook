@@ -6,6 +6,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf 
 WORKDIR /app
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
+ENV PYTHONWARNINGS="ignore::SyntaxWarning"
+COPY narrator/ narrator/
 COPY poc.py .
 RUN uv run python -c "import nltk; nltk.download('punkt_tab', quiet=True)"
-ENTRYPOINT ["uv", "run", "python", "poc.py"]
+ENTRYPOINT ["uv", "run", "narrator"]

@@ -16,13 +16,20 @@ services:
       - kokoro-models:/app/models
     restart: unless-stopped
 
-  poc:
+  narrator:
     build: .
     volumes:
-      - ./input:/books:ro
-      - ./output:/output
+      - ${CALIBRE_LIBRARY_PATH:-./input}:/calibre-library:ro
+      - ${AUDIOBOOK_OUTPUT_PATH:-./output}:/audiobooks
+      - narrator-data:/app/data
     environment:
-      - TTS_URL=${TTS_URL:-http://192.168.2.38:11880}
+      - TTS_API_URL=${TTS_API_URL:-http://192.168.2.38:11880}
+      - CALIBRE_LIBRARY_PATH=/calibre-library
+      - AUDIOBOOK_OUTPUT_PATH=/audiobooks
+      - DEFAULT_VOICE=${DEFAULT_VOICE:-af_heart}
+      - NARRATOR_DB_PATH=/app/data/narrator.db
+      - LOG_LEVEL=${LOG_LEVEL:-info}
 
 volumes:
   kokoro-models:
+  narrator-data:
