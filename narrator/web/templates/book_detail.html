@@ -18,17 +18,17 @@
         <p class="book-description">{{ book.description[:500] }}{% if book.description|length > 500 %}...{% endif %}</p>
         {% endif %}
 
-        <div class="book-actions" x-data="{ voice: '{{ health.kokoro_voices }}' > 0 ? '' : 'af_heart' }">
+        <div class="book-actions" x-data="{ voice: '{{ default_voice }}' }">
             <select class="input select" x-model="voice" id="voice-select"
-                    hx-get="/api/voices" hx-trigger="load" hx-swap="none"
                     x-init="fetch('/api/voices').then(r=>r.json()).then(d=>{
                         const sel = document.getElementById('voice-select');
+                        const def = '{{ default_voice }}';
                         if(d.voices && d.voices.length){
-                            sel.innerHTML = d.voices.map(v=>'<option value=&quot;'+v+'&quot;>'+v+'</option>').join('');
-                            voice = d.voices[0];
+                            sel.innerHTML = d.voices.map(v=>'<option value=&quot;'+v+'&quot;'+(v===def?' selected':'')+'>'+v+(v===def?' (default)':'')+'</option>').join('');
+                            if(d.voices.includes(def)) voice = def; else voice = d.voices[0];
                         }
                     })">
-                <option value="af_heart">af_heart (default)</option>
+                <option value="{{ default_voice }}">{{ default_voice }} (default)</option>
             </select>
             <button class="btn btn-primary"
                     @click="fetch('/api/books/{{ book.id }}/convert', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({voice:voice})}).then(r=>r.json()).then(d=>{if(d.job_id)window.location='/queue';else alert(d.detail||'Error')}).catch(()=>alert('Failed'))">

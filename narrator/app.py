@@ -206,6 +206,7 @@ async def book_detail(request: Request, book_id: int):
 
     return templates.TemplateResponse("book_detail.html", _ctx(
         request, book=book, chapters=chapters, jobs=book_jobs,
+        default_voice=settings.get("default_voice"),
     ))
 
 
