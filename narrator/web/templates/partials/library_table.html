@@ -1,0 +1,50 @@
+<table class="table">
+    <thead>
+        <tr>
+            <th class="col-check"><input type="checkbox" @change="if($event.target.checked){document.querySelectorAll('.book-check').forEach(c=>{c.checked=true;selected.add(parseInt(c.value))})}else{document.querySelectorAll('.book-check').forEach(c=>{c.checked=false});selected.clear()}"></th>
+            <th><a href="?sort=title&search={{ search }}&author={{ author_filter }}&status={{ status_filter }}&per_page={{ per_page }}" class="sort-link {% if sort == 'title' %}sort-active{% endif %}">Title</a></th>
+            <th><a href="?sort=author&search={{ search }}&author={{ author_filter }}&status={{ status_filter }}&per_page={{ per_page }}" class="sort-link {% if sort == 'author' %}sort-active{% endif %}">Author</a></th>
+            <th>Series</th>
+            <th><a href="?sort=status&search={{ search }}&author={{ author_filter }}&status={{ status_filter }}&per_page={{ per_page }}" class="sort-link {% if sort == 'status' %}sort-active{% endif %}">Status</a></th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for book in books %}
+        <tr class="clickable-row" onclick="if(!event.target.closest('input'))window.location='/book/{{ book.id }}'">
+            <td class="col-check" onclick="event.stopPropagation()">
+                <input type="checkbox" class="book-check" value="{{ book.id }}"
+                       @change="$event.target.checked ? selected.add({{ book.id }}) : selected.delete({{ book.id }})">
+            </td>
+            <td class="cell-title">{{ book.title }}</td>
+            <td>{{ book.author }}</td>
+            <td>{% if book.series %}{{ book.series }} #{{ book.series_index }}{% endif %}</td>
+            <td>
+                {% set st = statuses.get(book.id, '') %}
+                {% if st %}
+                <span class="badge badge-{{ 'green' if st in ('complete', 'converted') else 'red' if st == 'failed' else 'blue' if st in ('synthesizing', 'extracting', 'building') else 'gray' }}">
+                    {{ st }}
+                </span>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% if total_pages > 1 %}
+<div class="pagination">
+    {% if page > 1 %}
+    <a href="?page={{ page - 1 }}&search={{ search }}&author={{ author_filter }}&status={{ status_filter }}&sort={{ sort }}&per_page={{ per_page }}"
+       class="btn btn-secondary btn-sm"
+       hx-get="/library?page={{ page - 1 }}&search={{ search }}&author={{ author_filter }}&status={{ status_filter }}&sort={{ sort }}&per_page={{ per_page }}"
+       hx-target="#library-content" hx-push-url="true">Prev</a>
+    {% endif %}
+    <span class="page-info">Page {{ page }} of {{ total_pages }}</span>
+    {% if page < total_pages %}
+    <a href="?page={{ page + 1 }}&search={{ search }}&author={{ author_filter }}&status={{ status_filter }}&sort={{ sort }}&per_page={{ per_page }}"
+       class="btn btn-secondary btn-sm"
+       hx-get="/library?page={{ page + 1 }}&search={{ search }}&author={{ author_filter }}&status={{ status_filter }}&sort={{ sort }}&per_page={{ per_page }}"
+       hx-target="#library-content" hx-push-url="true">Next</a>
+    {% endif %}
+</div>
+{% endif %}

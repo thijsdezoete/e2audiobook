@@ -27,6 +27,9 @@ class Job:
     error_message: str | None = None
     epub_path: str | None = None
     output_path: str | None = None
+    queue_position: int | None = None
+    duration_seconds: int | None = None
+    file_size_bytes: int | None = None
     created_at: datetime | None = None
     started_at: datetime | None = None
     completed_at: datetime | None = None

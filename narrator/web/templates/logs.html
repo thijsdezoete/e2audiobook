@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Logs - Narrator{% endblock %}
+{% block nav_logs %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Logs</h1>
+    <div class="page-actions">
+        <a href="/api/logs?limit=10000" class="btn btn-secondary btn-sm" download="narrator-logs.json">Download</a>
+    </div>
+</div>
+
+<div x-data="logViewer()" x-init="loadLogs()">
+    <div class="filter-row">
+        <div class="toggle-group">
+            <button class="btn btn-sm" :class="level === '' ? 'btn-primary' : 'btn-secondary'" @click="level = ''; loadLogs()">All</button>
+            <button class="btn btn-sm" :class="level === 'DEBUG' ? 'btn-primary' : 'btn-secondary'" @click="level = 'DEBUG'; loadLogs()">Debug</button>
+            <button class="btn btn-sm" :class="level === 'INFO' ? 'btn-primary' : 'btn-secondary'" @click="level = 'INFO'; loadLogs()">Info</button>
+            <button class="btn btn-sm" :class="level === 'WARNING' ? 'btn-primary' : 'btn-secondary'" @click="level = 'WARNING'; loadLogs()">Warning</button>
+            <button class="btn btn-sm" :class="level === 'ERROR' ? 'btn-primary' : 'btn-secondary'" @click="level = 'ERROR'; loadLogs()">Error</button>
+        </div>
+        <input type="search" class="input search-input" placeholder="Search logs..."
+               x-model="search" @keyup.debounce.300ms="loadLogs()">
+        <label class="toggle-label">
+            <input type="checkbox" x-model="autoScroll"> Auto-scroll
+        </label>
+    </div>
+
+    <div class="log-view" id="log-view">
+        <template x-for="entry in logs" :key="entry.timestamp + entry.message">
+            <div class="log-line" :class="'log-' + entry.level.toLowerCase()">
+                <span class="log-time" x-text="entry.timestamp"></span>
+                <span class="log-level" x-text="entry.level"></span>
+                <span class="log-name" x-text="entry.name"></span>
+                <span class="log-msg" x-text="entry.message"></span>
+            </div>
+        </template>
+    </div>
+</div>
+
+<script>
+function logViewer() {
+    return {
+        logs: [],
+        level: '',
+        search: '',
+        autoScroll: true,
+        loadLogs() {
+            const params = new URLSearchParams();
+            if (this.level) params.set('level', this.level);
+            if (this.search) params.set('search', this.search);
+            params.set('limit', '500');
+            fetch('/api/logs?' + params).then(r => r.json()).then(d => {
+                this.logs = d.logs;
+                if (this.autoScroll) {
+                    this.$nextTick(() => {
+                        const el = document.getElementById('log-view');
+                        if (el) el.scrollTop = el.scrollHeight;
+                    });
+                }
+            });
+        },
+        init() {
+            setInterval(() => this.loadLogs(), 5000);
+        }
+    }
+}
+</script>
+{% endblock %}

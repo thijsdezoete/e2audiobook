@@ -18,17 +18,38 @@ services:
 
   narrator:
     build: .
+    ports:
+      - "${NARRATOR_PORT:-8585}:8585"
     volumes:
       - ${CALIBRE_LIBRARY_PATH:-./input}:/calibre-library:ro
       - ${AUDIOBOOK_OUTPUT_PATH:-./output}:/audiobooks
       - narrator-data:/app/data
     environment:
-      - TTS_API_URL=${TTS_API_URL:-http://192.168.2.38:11880}
+      - TTS_API_URL=${TTS_API_URL:-http://kokoro-tts:8880}
       - CALIBRE_LIBRARY_PATH=/calibre-library
       - AUDIOBOOK_OUTPUT_PATH=/audiobooks
       - DEFAULT_VOICE=${DEFAULT_VOICE:-af_heart}
       - NARRATOR_DB_PATH=/app/data/narrator.db
       - LOG_LEVEL=${LOG_LEVEL:-info}
+      - NARRATOR_PORT=${NARRATOR_PORT:-8585}
+      - TTS_SPEED=${TTS_SPEED:-1.0}
+      - AUTO_CONVERT=${AUTO_CONVERT:-false}
+      - AUTO_SCAN_INTERVAL=${AUTO_SCAN_INTERVAL:-300}
+      - ABS_API_URL=${ABS_API_URL:-}
+      - ABS_API_TOKEN=${ABS_API_TOKEN:-}
+      - WEBHOOK_URL=${WEBHOOK_URL:-}
+      - WEBHOOK_ON_COMPLETE=${WEBHOOK_ON_COMPLETE:-true}
+      - WEBHOOK_ON_FAILURE=${WEBHOOK_ON_FAILURE:-true}
+      - QUIET_HOURS_START=${QUIET_HOURS_START:-}
+      - QUIET_HOURS_END=${QUIET_HOURS_END:-}
+      - DELAY_BETWEEN_BOOKS=${DELAY_BETWEEN_BOOKS:-0}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8585/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
 
 volumes:
   kokoro-models:

@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - Narrator{% endblock %}
+{% block nav_dashboard %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Dashboard</h1>
+    <div class="page-actions">
+        <button class="btn btn-primary" hx-post="/api/books/convert-all" hx-swap="none"
+                hx-confirm="Queue all unconverted books?">Convert All</button>
+        <button class="btn btn-secondary" hx-post="/api/scan" hx-swap="none">Scan Library</button>
+    </div>
+</div>
+
+<div class="status-grid">
+    <div class="status-card">
+        <div class="status-line">
+            <span class="health-dot {% if health.kokoro_connected %}dot-green{% else %}dot-red{% endif %}"></span>
+            <span class="status-label">Kokoro TTS</span>
+            <span class="status-value">
+                {% if health.kokoro_connected %}Connected ({{ health.kokoro_voices }} voices){% else %}Disconnected{% endif %}
+            </span>
+        </div>
+        <div class="status-line">
+            <span class="health-dot {% if health.library_accessible %}dot-green{% else %}dot-red{% endif %}"></span>
+            <span class="status-label">Library</span>
+            <span class="status-value">{% if health.library_accessible %}Mounted{% else %}Not Found{% endif %}</span>
+        </div>
+        <div class="status-line">
+            <span class="health-dot {% if health.output_writable %}dot-green{% else %}dot-red{% endif %}"></span>
+            <span class="status-label">Output</span>
+            <span class="status-value">{% if health.output_writable %}Writable{% else %}Not Writable{% endif %}</span>
+        </div>
+        <div class="status-line">
+            <span class="health-dot {% if health.worker_running %}dot-green{% else %}dot-gray{% endif %}"></span>
+            <span class="status-label">Worker</span>
+            <span class="status-value">
+                {% if health.queue_paused %}Paused{% elif health.worker_running %}Running{% else %}Stopped{% endif %}
+            </span>
+        </div>
+    </div>
+
+    <div class="status-card">
+        <div class="stat-row">
+            <span class="stat-number">{{ summary.get('pending', 0) }}</span>
+            <span class="stat-label">Pending</span>
+        </div>
+        <div class="stat-row">
+            <span class="stat-number">{{ summary.get('synthesizing', 0) + summary.get('extracting', 0) + summary.get('building', 0) }}</span>
+            <span class="stat-label">Active</span>
+        </div>
+        <div class="stat-row">
+            <span class="stat-number">{{ summary.get('complete', 0) }}</span>
+            <span class="stat-label">Complete</span>
+        </div>
+        <div class="stat-row">
+            <span class="stat-number">{{ summary.get('failed', 0) }}</span>
+            <span class="stat-label">Failed</span>
+        </div>
+    </div>
+</div>
+
+{% if active %}
+<div class="section">
+    <h2>Now Converting</h2>
+    <div class="active-job">
+        <div class="active-job-info">
+            <strong>{{ active.title }}</strong> by {{ active.author }}
+            <span class="badge badge-blue">{{ active.voice }}</span>
+        </div>
+        <div class="progress-bar">
+            <div class="progress-fill" style="width: {{ (active.chapters_done / active.chapters_total * 100) if active.chapters_total else 0 }}%"></div>
+        </div>
+        <div class="progress-text">Chapter {{ active.chapters_done }} / {{ active.chapters_total }}</div>
+    </div>
+</div>
+{% endif %}
+
+<div class="section">
+    <h2>Recent Activity</h2>
+    {% if recent %}
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Title</th>
+                <th>Author</th>
+                <th>Status</th>
+                <th>Progress</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for job in recent %}
+            <tr>
+                <td>{{ job.title }}</td>
+                <td>{{ job.author }}</td>
+                <td>
+                    <span class="badge badge-{{ 'green' if job.status.value == 'complete' else 'red' if job.status.value == 'failed' else 'blue' if job.status.value in ('synthesizing', 'extracting', 'building') else 'gray' }}">
+                        {{ job.status.value }}
+                    </span>
+                </td>
+                <td>
+                    {% if job.chapters_total %}{{ job.chapters_done }}/{{ job.chapters_total }}{% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="empty-state">No recent activity.</p>
+    {% endif %}
+</div>
+{% endblock %}

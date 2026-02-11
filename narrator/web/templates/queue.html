@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}Queue - Narrator{% endblock %}
+{% block nav_queue %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Queue</h1>
+    <div class="page-actions">
+        {% if health.queue_paused %}
+        <button class="btn btn-primary" hx-post="/api/queue/resume" hx-swap="none"
+                onclick="setTimeout(()=>location.reload(),500)">Resume</button>
+        {% else %}
+        <button class="btn btn-secondary" hx-post="/api/queue/pause" hx-swap="none"
+                onclick="setTimeout(()=>location.reload(),500)">Pause</button>
+        {% endif %}
+    </div>
+</div>
+
+{% if health.queue_paused %}
+<div class="alert alert-amber">Queue is paused. No new jobs will be started.</div>
+{% endif %}
+
+{% if active %}
+<div class="section">
+    <h2>Now</h2>
+    {% for job in active %}
+    <div class="queue-card queue-active">
+        <div class="queue-card-header">
+            <strong>{{ job.title }}</strong> by {{ job.author }}
+            <span class="badge badge-blue">{{ job.status.value }}</span>
+            <button class="btn btn-danger btn-sm" hx-delete="/api/queue/{{ job.id }}" hx-swap="none"
+                    hx-confirm="Cancel this job?" onclick="setTimeout(()=>location.reload(),500)">Cancel</button>
+        </div>
+        <div class="progress-bar">
+            <div class="progress-fill" style="width: {{ (job.chapters_done / job.chapters_total * 100) if job.chapters_total else 0 }}%"></div>
+        </div>
+        <div class="progress-text">
+            {{ job.voice }} &middot; Chapter {{ job.chapters_done }}/{{ job.chapters_total }}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% if pending %}
+<div class="section">
+    <h2>Up Next ({{ pending|length }})</h2>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Title</th>
+                <th>Author</th>
+                <th>Voice</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for job in pending %}
+            <tr>
+                <td>{{ job.title }}</td>
+                <td>{{ job.author }}</td>
+                <td><span class="badge badge-gray">{{ job.voice }}</span></td>
+                <td>
+                    <button class="btn btn-danger btn-sm" hx-delete="/api/queue/{{ job.id }}" hx-swap="none"
+                            hx-confirm="Remove from queue?" onclick="setTimeout(()=>location.reload(),500)">Remove</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+{% if completed %}
+<div class="section">
+    <h2>Done ({{ completed|length }})</h2>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Title</th>
+                <th>Author</th>
+                <th>Voice</th>
+                <th>Completed</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for job in completed %}
+            <tr class="row-success">
+                <td>{{ job.title }}</td>
+                <td>{{ job.author }}</td>
+                <td>{{ job.voice }}</td>
+                <td>{{ job.completed_at }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+{% if failed %}
+<div class="section">
+    <h2>Failed ({{ failed|length }})</h2>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Title</th>
+                <th>Author</th>
+                <th>Error</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for job in failed %}
+            <tr class="row-error" x-data="{ expanded: false }">
+                <td>{{ job.title }}</td>
+                <td>{{ job.author }}</td>
+                <td>
+                    <span class="clickable" @click="expanded = !expanded">
+                        {{ job.error_message[:80] if job.error_message else 'Unknown error' }}{% if job.error_message and job.error_message|length > 80 %}...{% endif %}
+                    </span>
+                    <div class="error-detail" x-show="expanded" x-cloak>{{ job.error_message }}</div>
+                </td>
+                <td>
+                    <button class="btn btn-secondary btn-sm" hx-post="/api/queue/{{ job.id }}/retry" hx-swap="none"
+                            onclick="setTimeout(()=>location.reload(),500)">Retry</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Library - Narrator{% endblock %}
+{% block nav_library %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Library <span class="count">({{ total }})</span></h1>
+</div>
+
+<div x-data="{ selected: new Set() }" class="library-controls">
+    <div class="filter-row">
+        <input type="search" class="input search-input" placeholder="Search books..."
+               name="search" value="{{ search }}"
+               hx-get="/library" hx-trigger="keyup changed delay:300ms"
+               hx-target="#library-content" hx-push-url="true"
+               hx-include="[name='author'], [name='status'], [name='sort'], [name='per_page']">
+
+        <select name="author" class="input select"
+                hx-get="/library" hx-trigger="change"
+                hx-target="#library-content" hx-push-url="true"
+                hx-include="[name='search'], [name='status'], [name='sort'], [name='per_page']">
+            <option value="">All Authors</option>
+            {% for a in authors %}
+            <option value="{{ a }}" {% if a == author_filter %}selected{% endif %}>{{ a }}</option>
+            {% endfor %}
+        </select>
+
+        <select name="status" class="input select"
+                hx-get="/library" hx-trigger="change"
+                hx-target="#library-content" hx-push-url="true"
+                hx-include="[name='search'], [name='author'], [name='sort'], [name='per_page']">
+            <option value="">All Statuses</option>
+            <option value="converted" {% if status_filter == 'converted' %}selected{% endif %}>Converted</option>
+            <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
+            <option value="complete" {% if status_filter == 'complete' %}selected{% endif %}>Complete</option>
+            <option value="failed" {% if status_filter == 'failed' %}selected{% endif %}>Failed</option>
+        </select>
+
+        <select name="per_page" class="input select select-sm"
+                hx-get="/library" hx-trigger="change"
+                hx-target="#library-content" hx-push-url="true"
+                hx-include="[name='search'], [name='author'], [name='status'], [name='sort']">
+            <option value="25" {% if per_page == 25 %}selected{% endif %}>25</option>
+            <option value="50" {% if per_page == 50 %}selected{% endif %}>50</option>
+            <option value="100" {% if per_page == 100 %}selected{% endif %}>100</option>
+        </select>
+
+        <input type="hidden" name="sort" value="{{ sort }}">
+    </div>
+
+    <div class="bulk-bar" x-show="selected.size > 0" x-cloak>
+        <span x-text="selected.size + ' selected'"></span>
+        <button class="btn btn-primary btn-sm"
+                @click="fetch('/api/books/convert-batch', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({book_ids:Array.from(selected)})}).then(()=>{selected.clear(); location.reload()})">
+            Convert
+        </button>
+        <button class="btn btn-secondary btn-sm" @click="selected.clear()">Clear</button>
+    </div>
+
+    <div id="library-content">
+        {% include "partials/library_table.html" %}
+    </div>
+</div>
+{% endblock %}

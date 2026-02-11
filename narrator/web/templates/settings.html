@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block title %}Settings - Narrator{% endblock %}
+{% block nav_settings %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Settings</h1>
+    <div class="page-actions">
+        <a href="/api/settings/export" class="btn btn-secondary btn-sm" download>Export</a>
+    </div>
+</div>
+
+<div x-data="settingsForm()" class="settings-form">
+    <div class="section">
+        <h2>TTS</h2>
+        <div class="form-group">
+            <label>TTS Server URL</label>
+            <input type="text" class="input" value="{{ settings.tts_url }}" @blur="save('tts_url', $event.target.value)">
+        </div>
+        <div class="form-group">
+            <label>Default Voice</label>
+            <input type="text" class="input" value="{{ settings.default_voice }}" @blur="save('default_voice', $event.target.value)">
+        </div>
+        <div class="form-group">
+            <label>TTS Speed</label>
+            <input type="text" class="input" value="{{ settings.tts_speed }}" @blur="save('tts_speed', $event.target.value)">
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Paths</h2>
+        <div class="form-group">
+            <label>Library Path</label>
+            <input type="text" class="input" value="{{ settings.calibre_library_path }}" @blur="save('calibre_library_path', $event.target.value)">
+        </div>
+        <div class="form-group">
+            <label>Output Path</label>
+            <input type="text" class="input" value="{{ settings.audiobook_output_path }}" @blur="save('audiobook_output_path', $event.target.value)">
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Automation</h2>
+        <div class="form-group">
+            <label>Auto Convert</label>
+            <select class="input select" @change="save('auto_convert', $event.target.value)">
+                <option value="false" {% if settings.auto_convert != 'true' %}selected{% endif %}>Disabled</option>
+                <option value="true" {% if settings.auto_convert == 'true' %}selected{% endif %}>Enabled</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Scan Interval (seconds)</label>
+            <input type="number" class="input" value="{{ settings.auto_scan_interval }}" @blur="save('auto_scan_interval', $event.target.value)">
+        </div>
+        <div class="form-group">
+            <label>Delay Between Books (seconds)</label>
+            <input type="number" class="input" value="{{ settings.delay_between_books }}" @blur="save('delay_between_books', $event.target.value)">
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Quiet Hours</h2>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Start (HH:MM)</label>
+                <input type="time" class="input" value="{{ settings.quiet_hours_start }}" @blur="save('quiet_hours_start', $event.target.value)">
+            </div>
+            <div class="form-group">
+                <label>End (HH:MM)</label>
+                <input type="time" class="input" value="{{ settings.quiet_hours_end }}" @blur="save('quiet_hours_end', $event.target.value)">
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Webhooks</h2>
+        <div class="form-group">
+            <label>Webhook URL</label>
+            <input type="url" class="input" value="{{ settings.webhook_url }}" @blur="save('webhook_url', $event.target.value)" placeholder="https://ntfy.sh/narrator">
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>On Complete</label>
+                <select class="input select" @change="save('webhook_on_complete', $event.target.value)">
+                    <option value="true" {% if settings.webhook_on_complete == 'true' %}selected{% endif %}>Yes</option>
+                    <option value="false" {% if settings.webhook_on_complete != 'true' %}selected{% endif %}>No</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>On Failure</label>
+                <select class="input select" @change="save('webhook_on_failure', $event.target.value)">
+                    <option value="true" {% if settings.webhook_on_failure == 'true' %}selected{% endif %}>Yes</option>
+                    <option value="false" {% if settings.webhook_on_failure != 'true' %}selected{% endif %}>No</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Audiobookshelf</h2>
+        <div class="form-group">
+            <label>API URL</label>
+            <input type="url" class="input" value="{{ settings.abs_api_url }}" @blur="save('abs_api_url', $event.target.value)" placeholder="http://audiobookshelf:80">
+        </div>
+        <div class="form-group">
+            <label>API Token</label>
+            <input type="password" class="input" value="{{ settings.abs_api_token }}" @blur="save('abs_api_token', $event.target.value)">
+        </div>
+    </div>
+
+    <div class="save-indicator" x-show="saved" x-cloak x-transition>Settings saved</div>
+</div>
+
+<script>
+function settingsForm() {
+    return {
+        saved: false,
+        save(key, value) {
+            fetch('/api/settings', {
+                method: 'PATCH',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({[key]: value})
+            }).then(() => {
+                this.saved = true;
+                setTimeout(() => this.saved = false, 2000);
+            });
+        }
+    }
+}
+</script>
+{% endblock %}

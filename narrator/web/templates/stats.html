@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}Stats - Narrator{% endblock %}
+{% block nav_stats %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Statistics</h1>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-card-number">{{ total_books }}</div>
+        <div class="stat-card-label">Books Converted</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-card-number">
+            {% set hours = (total_duration // 3600) %}
+            {% set minutes = ((total_duration % 3600) // 60) %}
+            {{ hours }}h {{ minutes }}m
+        </div>
+        <div class="stat-card-label">Total Audio</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-card-number">
+            {% set gb = total_size / (1024 * 1024 * 1024) %}
+            {{ "%.1f"|format(gb) }} GB
+        </div>
+        <div class="stat-card-label">Total Size</div>
+    </div>
+</div>
+
+<div class="stats-columns">
+    <div class="section">
+        <h2>Queue Status</h2>
+        <table class="table">
+            <tbody>
+                {% for status, count in summary.items() %}
+                <tr>
+                    <td>
+                        <span class="badge badge-{{ 'green' if status == 'complete' else 'red' if status == 'failed' else 'blue' if status in ('synthesizing', 'extracting', 'building') else 'gray' }}">
+                            {{ status }}
+                        </span>
+                    </td>
+                    <td class="cell-number">{{ count }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section" x-data x-init="
+        fetch('/api/stats').then(r=>r.json()).then(d=>{
+            $el.querySelector('#top-authors').innerHTML = d.top_authors.map(a =>
+                '<tr><td>'+a.author+'</td><td class=cell-number>'+a.count+'</td></tr>'
+            ).join('') || '<tr><td colspan=2>No data</td></tr>';
+            $el.querySelector('#voice-usage').innerHTML = d.voice_usage.map(v =>
+                '<tr><td>'+v.voice+'</td><td class=cell-number>'+v.count+'</td></tr>'
+            ).join('') || '<tr><td colspan=2>No data</td></tr>';
+        })">
+        <h2>Top Authors</h2>
+        <table class="table">
+            <tbody id="top-authors">
+                <tr><td>Loading...</td></tr>
+            </tbody>
+        </table>
+
+        <h2>Voice Usage</h2>
+        <table class="table">
+            <tbody id="voice-usage">
+                <tr><td>Loading...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% if completed_jobs %}
+<div class="section">
+    <h2>Recent Conversions</h2>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Title</th>
+                <th>Author</th>
+                <th>Voice</th>
+                <th>Duration</th>
+                <th>Size</th>
+                <th>Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for job in completed_jobs[:20] %}
+            <tr>
+                <td>{{ job.title }}</td>
+                <td>{{ job.author }}</td>
+                <td>{{ job.voice }}</td>
+                <td>
+                    {% if job.duration_seconds %}
+                    {% set h = job.duration_seconds // 3600 %}
+                    {% set m = (job.duration_seconds % 3600) // 60 %}
+                    {{ h }}h {{ m }}m
+                    {% endif %}
+                </td>
+                <td>
+                    {% if job.file_size_bytes %}
+                    {{ "%.1f"|format(job.file_size_bytes / (1024*1024)) }} MB
+                    {% endif %}
+                </td>
+                <td>{{ job.completed_at }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+{% endblock %}

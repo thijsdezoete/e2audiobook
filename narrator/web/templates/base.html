@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Narrator{% endblock %}</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="/static/js/htmx.min.js" defer></script>
+    <script src="/static/js/alpine.min.js" defer></script>
+    {% block head %}{% endblock %}
+</head>
+<body x-data="{ darkMode: localStorage.getItem('darkMode') === 'true' }" :class="{ 'dark': darkMode }">
+    <nav class="nav">
+        <div class="nav-left">
+            <a href="/" class="nav-brand">Narrator</a>
+            <a href="/" class="nav-link {% block nav_dashboard %}{% endblock %}">Dashboard</a>
+            <a href="/library" class="nav-link {% block nav_library %}{% endblock %}">Library</a>
+            <a href="/queue" class="nav-link {% block nav_queue %}{% endblock %}">Queue</a>
+            <a href="/settings" class="nav-link {% block nav_settings %}{% endblock %}">Settings</a>
+            <a href="/logs" class="nav-link {% block nav_logs %}{% endblock %}">Logs</a>
+            <a href="/stats" class="nav-link {% block nav_stats %}{% endblock %}">Stats</a>
+        </div>
+        <div class="nav-right">
+            <span class="health-dot {% if health.overall == 'healthy' %}dot-green{% elif health.overall == 'degraded' %}dot-amber{% else %}dot-red{% endif %}"
+                  title="{{ health.overall }}"></span>
+            <button class="btn-icon" @click="darkMode = !darkMode; localStorage.setItem('darkMode', darkMode)" title="Toggle dark mode">
+                <span x-show="!darkMode">&#9790;</span>
+                <span x-show="darkMode">&#9788;</span>
+            </button>
+        </div>
+    </nav>
+
+    {% block progress %}{% endblock %}
+
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <div id="toast-container"></div>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

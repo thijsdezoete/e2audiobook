@@ -22,10 +22,12 @@ class JobQueue:
         series_index: float | None = None,
     ) -> Job:
         conn = self.db.conn
+        row = conn.execute("SELECT COALESCE(MAX(queue_position), 0) FROM jobs WHERE status = 'pending'").fetchone()
+        max_pos = row[0]
         conn.execute(
-            """INSERT INTO jobs (calibre_book_id, title, author, voice, epub_path, series, series_index)
-               VALUES (?, ?, ?, ?, ?, ?, ?)""",
-            (calibre_book_id, title, author, voice, epub_path, series, series_index),
+            """INSERT INTO jobs (calibre_book_id, title, author, voice, epub_path, series, series_index, queue_position)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (calibre_book_id, title, author, voice, epub_path, series, series_index, max_pos + 1),
         )
         conn.commit()
         job_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
@@ -34,13 +36,14 @@ class JobQueue:
 
     def is_duplicate(self, calibre_book_id: int) -> bool:
         row = self.db.conn.execute(
-            "SELECT id FROM jobs WHERE calibre_book_id = ?", (calibre_book_id,)
+            "SELECT id FROM jobs WHERE calibre_book_id = ? AND status NOT IN ('failed')",
+            (calibre_book_id,),
         ).fetchone()
         return row is not None
 
     def next_pending(self) -> Job | None:
         row = self.db.conn.execute(
-            "SELECT * FROM jobs WHERE status = ? ORDER BY id LIMIT 1",
+            "SELECT * FROM jobs WHERE status = ? ORDER BY COALESCE(queue_position, id) LIMIT 1",
             (JobStatus.PENDING,),
         ).fetchone()
         return self._row_to_job(row) if row else None
@@ -66,11 +69,15 @@ class JobQueue:
         )
         self.db.conn.commit()
 
-    def complete_job(self, job_id: int, output_path: str):
+    def complete_job(
+        self, job_id: int, output_path: str,
+        duration_seconds: int | None = None, file_size_bytes: int | None = None,
+    ):
         now = datetime.now(UTC).isoformat()
         self.db.conn.execute(
-            "UPDATE jobs SET status = ?, output_path = ?, completed_at = ? WHERE id = ?",
-            (JobStatus.COMPLETE, output_path, now, job_id),
+            """UPDATE jobs SET status = ?, output_path = ?, completed_at = ?,
+               duration_seconds = ?, file_size_bytes = ? WHERE id = ?""",
+            (JobStatus.COMPLETE, output_path, now, duration_seconds, file_size_bytes, job_id),
         )
         self.db.conn.commit()
         log.info("Job #%d completed: %s", job_id, output_path)
@@ -84,6 +91,42 @@ class JobQueue:
         self.db.conn.commit()
         log.error("Job #%d failed: %s", job_id, error_message)
 
+    def cancel_job(self, job_id: int):
+        job = self.get_job(job_id)
+        if job.status in (JobStatus.COMPLETE, JobStatus.FAILED):
+            return
+        self.db.conn.execute(
+            "UPDATE jobs SET status = ?, error_message = ?, completed_at = ? WHERE id = ?",
+            (JobStatus.FAILED, "Cancelled by user", datetime.now(UTC).isoformat(), job_id),
+        )
+        self.db.conn.commit()
+        log.info("Job #%d cancelled", job_id)
+
+    def retry_job(self, job_id: int) -> Job:
+        job = self.get_job(job_id)
+        if job.status != JobStatus.FAILED:
+            raise ValueError(f"Job {job_id} is not failed (status: {job.status})")
+        max_pos = self.db.conn.execute(
+            "SELECT COALESCE(MAX(queue_position), 0) FROM jobs WHERE status = 'pending'"
+        ).fetchone()[0]
+        self.db.conn.execute(
+            """UPDATE jobs SET status = ?, error_message = NULL, started_at = NULL,
+               completed_at = NULL, chapters_done = 0, queue_position = ? WHERE id = ?""",
+            (JobStatus.PENDING, max_pos + 1, job_id),
+        )
+        self.db.conn.commit()
+        log.info("Job #%d queued for retry", job_id)
+        return self.get_job(job_id)
+
+    def reorder(self, job_ids: list[int]):
+        conn = self.db.conn
+        for position, job_id in enumerate(job_ids, 1):
+            conn.execute(
+                "UPDATE jobs SET queue_position = ? WHERE id = ? AND status = 'pending'",
+                (position, job_id),
+            )
+        conn.commit()
+
     def get_resumable_jobs(self) -> list[Job]:
         rows = self.db.conn.execute(
             "SELECT * FROM jobs WHERE status IN (?, ?, ?) ORDER BY id",
@@ -91,14 +134,37 @@ class JobQueue:
         ).fetchall()
         return [self._row_to_job(row) for row in rows]
 
-    def list_jobs(self, status: JobStatus | None = None) -> list[Job]:
+    def list_jobs(self, status: JobStatus | None = None, limit: int = 0, offset: int = 0) -> list[Job]:
+        query = "SELECT * FROM jobs"
+        params: list = []
         if status:
-            rows = self.db.conn.execute(
-                "SELECT * FROM jobs WHERE status = ? ORDER BY id", (status,)
-            ).fetchall()
-        else:
-            rows = self.db.conn.execute("SELECT * FROM jobs ORDER BY id").fetchall()
+            query += " WHERE status = ?"
+            params.append(status)
+        query += " ORDER BY id DESC"
+        if limit:
+            query += " LIMIT ?"
+            params.append(limit)
+            if offset:
+                query += " OFFSET ?"
+                params.append(offset)
+        rows = self.db.conn.execute(query, params).fetchall()
         return [self._row_to_job(row) for row in rows]
+
+    def count_jobs(self, status: JobStatus | None = None) -> int:
+        if status:
+            row = self.db.conn.execute("SELECT COUNT(*) FROM jobs WHERE status = ?", (status,)).fetchone()
+        else:
+            row = self.db.conn.execute("SELECT COUNT(*) FROM jobs").fetchone()
+        return row[0]
+
+    def queue_summary(self) -> dict:
+        rows = self.db.conn.execute(
+            "SELECT status, COUNT(*) as count FROM jobs GROUP BY status"
+        ).fetchall()
+        summary = {s.value: 0 for s in JobStatus}
+        for row in rows:
+            summary[row["status"]] = row["count"]
+        return summary
 
     def _row_to_job(self, row) -> Job:
         return Job(
@@ -115,6 +181,9 @@ class JobQueue:
             error_message=row["error_message"],
             epub_path=row["epub_path"],
             output_path=row["output_path"],
+            queue_position=row["queue_position"],
+            duration_seconds=row["duration_seconds"],
+            file_size_bytes=row["file_size_bytes"],
             created_at=row["created_at"],
             started_at=row["started_at"],
             completed_at=row["completed_at"],

@@ -10,4 +10,5 @@ ENV PYTHONWARNINGS="ignore::SyntaxWarning"
 COPY narrator/ narrator/
 COPY poc.py .
 RUN uv run python -c "import nltk; nltk.download('punkt_tab', quiet=True)"
-ENTRYPOINT ["uv", "run", "narrator"]
+EXPOSE 8585
+ENTRYPOINT ["uv", "run", "uvicorn", "narrator.app:app", "--host", "0.0.0.0", "--port", "8585"]
